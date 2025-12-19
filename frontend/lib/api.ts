@@ -2,10 +2,10 @@
  * API client utility for making HTTP requests to the backend
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1"
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
 interface FetchOptions extends RequestInit {
-  data?: unknown
+  data?: unknown;
 }
 
 interface LoginResponse {
@@ -14,66 +14,58 @@ interface LoginResponse {
     id: string;
     email: string;
     name: string;
-    // Add other user properties as needed
   };
 }
+
+// Handle unauthorized responses
+const handleUnauthorized = () => {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('token');
+    // Redirect to login page if not already there
+    if (!window.location.pathname.includes('/login')) {
+      window.location.href = '/login';
+    }
+  }
+};
 
 /**
  * Generic API fetch function with automatic token handling
  */
 async function apiFetch<T>(endpoint: string, options: FetchOptions = {}): Promise<T> {
-  const { data, ...fetchOptions } = options
+  const { data, ...fetchOptions } = options;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
   const config: RequestInit = {
     ...fetchOptions,
     headers: {
       "Content-Type": "application/json",
+      ...(token && { "Authorization": `Bearer ${token}` }),
       ...fetchOptions.headers,
     },
-    credentials: "include", // Include cookies for JWT
-  }
+    credentials: "include",
+  };
 
   if (data) {
-    config.body = JSON.stringify(data)
+    config.body = JSON.stringify(data);
   }
 
   try {
-    const response = await fetch(`${API_URL}${endpoint}`, config)
+    const response = await fetch(`${API_URL}${endpoint}`, config);
+    const responseData = await response.json().catch(() => ({}));
 
-    // Parse response data first
-    const responseData = await response.json().catch(() => null)
+    if (response.status === 401) {
+      handleUnauthorized();
+      throw new Error('Session expired. Please log in again.');
+    }
 
     if (!response.ok) {
-      const errorDetails = {
-        status: response.status,
-        statusText: response.statusText,
-        url: response.url,
-        error: responseData?.error || responseData?.message || "Request failed",
-        details: responseData?.details || responseData,
-        responseData,
-      }
-
-      console.error("API Error:", errorDetails)
-
-      // Handle different types of errors
-      let errorMessage = responseData?.message || "Request failed"
-
-      // If it's a validation error, show detailed message
-      if (responseData?.details) {
-        errorMessage = `${errorMessage}: ${JSON.stringify(responseData.details)}`
-      }
-
-      throw new Error(errorMessage)
+      throw new Error(responseData.message || 'Something went wrong');
     }
 
-    return responseData
+    return responseData;
   } catch (error) {
-    // Re-throw if it's already our formatted error
-    if (error instanceof Error) {
-      throw error
-    }
-    // Handle network errors
-    throw new Error("Network error occurred")
+    console.error('API Error:', error);
+    throw error;
   }
 }
 
@@ -82,36 +74,68 @@ export const api = {
   auth: {
     register: (data: { email: string; password: string; name: string }) =>
       apiFetch("/auth/register", { method: "POST", data }),
-    login: (data: { email: string; password: string }): Promise<LoginResponse> => apiFetch<LoginResponse>("/auth/login", { method: "POST", data }),
-    logout: () => apiFetch("/auth/logout", { method: "POST" }),
-    me: () => apiFetch("/auth/me"),
-    updateProfile: (data: { name: string }) => apiFetch("/auth/profile", { method: "PATCH", data }),
+
+    login: async (data: { email: string; password: string }): Promise<LoginResponse> => {
+      const response = await apiFetch<LoginResponse>("/auth/login", { 
+        method: "POST", 
+        data 
+      });
+      if (response?.token) {
+        localStorage.setItem('token', response.token);
+      }
+      return response;
+    },
+
+    logout: async () => {
+      localStorage.removeItem('token');
+      return apiFetch("/auth/logout", { method: "POST" });
+    },
+
+    me: () => apiFetch<LoginResponse>("/auth/me"),
+    
+    updateProfile: (data: { name: string }) => 
+      apiFetch("/auth/profile", { method: "PATCH", data }),
   },
 
   // Tasks
   tasks: {
     getAll: (params?: { status?: string; priority?: string; sortBy?: string }) => {
-      const query = params ? `?${new URLSearchParams(params as Record<string, string>).toString()}` : ""
-      return apiFetch(`/tasks${query}`)
+      const query = params ? `?${new URLSearchParams(params as Record<string, string>).toString()}` : "";
+      return apiFetch(`/tasks${query}`);
     },
+
     getById: (id: string) => apiFetch(`/tasks/${id}`),
-    create: (data: unknown) => apiFetch("/tasks", { method: "POST", data }),
-    update: (id: string, data: unknown) => apiFetch(`/tasks/${id}`, { method: "PATCH", data }),
-    delete: (id: string) => apiFetch(`/tasks/${id}`, { method: "DELETE" }),
-    getDashboard: () => apiFetch("/tasks/dashboard/stats"),
+
+    create: (data: unknown) => 
+      apiFetch("/tasks", { method: "POST", data }),
+
+    update: (id: string, data: unknown) => 
+      apiFetch(`/tasks/${id}`, { method: "PATCH", data }),
+
+    delete: (id: string) => 
+      apiFetch(`/tasks/${id}`, { method: "DELETE" }),
+
+    getDashboard: () => 
+      apiFetch("/tasks/dashboard"),
   },
 
   // Notifications
   notifications: {
     getAll: () => apiFetch("/notifications"),
-    markAsRead: (id: string) => apiFetch(`/notifications/${id}/read`, { method: "PATCH" }),
-    delete: (id: string) => apiFetch(`/notifications/${id}`, { method: "DELETE" }),
-    deleteAll: () => apiFetch("/notifications", { method: "DELETE" }),
+    
+    markAsRead: (id: string) => 
+      apiFetch(`/notifications/${id}/read`, { method: "PATCH" }),
+      
+    delete: (id: string) => 
+      apiFetch(`/notifications/${id}`, { method: "DELETE" }),
+      
+    deleteAll: () => 
+      apiFetch("/notifications", { method: "DELETE" }),
   },
   
   // Users
   users: {
-    getAll: () => apiFetch<{ id: string; name: string; email: string }[]>('/users'),
+    getAll: () => apiFetch("/users"),
     getById: (id: string) => apiFetch(`/users/${id}`),
   },
-}
+};

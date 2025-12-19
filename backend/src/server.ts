@@ -18,29 +18,65 @@ const app = express();
 const httpServer = createServer(app);
 
 // Initialize database connection
-connectDB().catch(console.error);
+// Initialize database connection
+connectDB().catch((error) => {
+  console.error('Failed to connect to database:', error);
+  process.exit(1);
+});
 
+// Configure allowed origins
 const allowedOrigins = [
   process.env.FRONTEND_URL,
-  "http://localhost:3000",
+  'http://localhost:3000',
+  'http://localhost:3001',
 ].filter(Boolean) as string[];
 
+// Configure CORS for Express
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.indexOf(origin) === -1) {
+        const msg = `The CORS policy for this site does not allow access from the specified Origin: ${origin}`;
+        console.warn(msg);
+        return callback(new Error(msg), false);
+      }
+      return callback(null, true);
+    },
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Authorization'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  })
+);
+
+// Configure Socket.IO
 const io = new Server(httpServer, {
   cors: {
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.some(allowedOrigin => 
+        origin.startsWith(allowedOrigin)
+      )) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
-    methods: ["GET", "POST"],
+    methods: ['GET', 'POST'],
   },
-  transports: ["websocket", "polling"],
+  transports: ['websocket', 'polling'],
   allowUpgrades: true,
   pingInterval: 10000,
   pingTimeout: 5000,
   cookie: {
-    name: "io",
+    name: 'io',
     httpOnly: true,
-    path: "/",
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    path: '/',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: process.env.NODE_ENV === 'production',
   }
 });
 
