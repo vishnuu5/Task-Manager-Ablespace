@@ -9,7 +9,7 @@ export const getSocket = (): Socket => {
   if (!socket) {
     socket = io(SOCKET_URL, {
       withCredentials: true,
-      transports: ["websocket"], // ✅ ADD THIS
+      transports: ["websocket"],
       autoConnect: false,
     });
   }

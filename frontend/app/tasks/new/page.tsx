@@ -23,10 +23,17 @@ export default function NewTaskPage() {
     const fetchUsers = async () => {
       try {
         const allUsers = await api.users.getAll();
-        setUsers(allUsers);
+        if (Array.isArray(allUsers) && allUsers.every(u => 
+          u && typeof u === 'object' && 
+          'id' in u && 'name' in u &&
+          typeof u.id === 'string' && typeof u.name === 'string'
+        )) {
+          setUsers(allUsers as { id: string; name: string }[]);
+        } else {
+          throw new Error('Invalid users data format');
+        }
       } catch (error) {
-        console.error('Failed to fetch users:', error);
-        // Fallback to current user if fetching all users fails
+        console.error("Failed to fetch users:", error);
         if (user) {
           setUsers([{ id: user.id, name: user.name }]);
         }
@@ -38,52 +45,56 @@ export default function NewTaskPage() {
     }
   }, [user]);
 
-const handleSubmit = async (formData: any) => {
-  try {
-    setLoading(true);
-    
-    // Format the task data according to the API requirements
-    const taskData = {
-      title: formData.title.trim(),
-      description: formData.description.trim(),
-      dueDate: new Date(formData.dueDate).toISOString(),
-      priority: formData.priority || 'Medium',
-      status: formData.status || 'To Do',
-      ...(formData.assignedToId && formData.assignedToId !== 'none' ? { 
-        assignedToId: formData.assignedToId 
-      } : {})
-    };
-
-    console.log('Submitting task data:', taskData);
-    
+  const handleSubmit = async (formData: any) => {
     try {
-      const response = await api.tasks.create(taskData);
-      console.log('Task created successfully:', response);
-      router.push("/dashboard");
-    } catch (apiError: any) {
-      console.error('API Error details:', apiError);
-      
-      // Handle validation errors
-      if (apiError.details) {
-        const errorMessages = Object.entries(apiError.details)
-          .map(([field, errors]) => {
-            const errorList = Array.isArray(errors) ? errors : [errors];
-            return `${field}: ${errorList.join(', ')}`;
-          })
-          .join('\n');
-        
-        alert(`Validation failed:\n${errorMessages}`);
-      } else {
-        alert(apiError.message || 'Failed to create task. Please check the console for details.');
+      setLoading(true);
+      const taskData = {
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        dueDate: new Date(formData.dueDate).toISOString(),
+        priority: formData.priority || "Medium",
+        status: formData.status || "To Do",
+        ...(formData.assignedToId && formData.assignedToId !== "none"
+          ? {
+              assignedToId: formData.assignedToId,
+            }
+          : {}),
+      };
+
+      console.log("Submitting task data:", taskData);
+
+      try {
+        const response = await api.tasks.create(taskData);
+        console.log("Task created successfully:", response);
+        router.push("/dashboard");
+      } catch (apiError: any) {
+        console.error("API Error details:", apiError);
+
+        if (apiError.details) {
+          const errorMessages = Object.entries(apiError.details)
+            .map(([field, errors]) => {
+              const errorList = Array.isArray(errors) ? errors : [errors];
+              return `${field}: ${errorList.join(", ")}`;
+            })
+            .join("\n");
+
+          alert(`Validation failed:\n${errorMessages}`);
+        } else {
+          alert(
+            apiError.message ||
+              "Failed to create task. Please check the console for details."
+          );
+        }
       }
+    } catch (error: any) {
+      console.error("Unexpected error:", error);
+      alert(
+        "An unexpected error occurred. Please check the console for details."
+      );
+    } finally {
+      setLoading(false);
     }
-  } catch (error: any) {
-    console.error('Unexpected error:', error);
-    alert('An unexpected error occurred. Please check the console for details.');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   if (authLoading || !user) {
     return (

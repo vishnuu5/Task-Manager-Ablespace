@@ -44,7 +44,6 @@ export default function TaskDetailPage() {
         status: data.status,
       }
 
-      // Only include assignedToId if it's not empty
       if (data.assignedToId && data.assignedToId.trim() !== "") {
         submitData.assignedToId = data.assignedToId
       }
@@ -66,7 +65,6 @@ export default function TaskDetailPage() {
     try {
       await api.tasks.delete(taskId)
 
-      // Clear all SWR cache entries for this task
       await globalMutate((key) => typeof key === "string" && key.includes(taskId), undefined, { revalidate: false })
 
       router.replace("/dashboard")

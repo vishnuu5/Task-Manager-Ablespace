@@ -34,7 +34,6 @@ export function useTask(id: string) {
       revalidateOnReconnect: false,
       dedupingInterval: 5000,
       onError: (err) => {
-        // Silently handle 404 errors (task not found/deleted)
         if (err?.message?.includes("Task not found") || err?.message?.includes("404")) {
           return
         }

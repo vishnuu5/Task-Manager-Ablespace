@@ -5,7 +5,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  createdAt?: string;  // Made optional with ?
+  createdAt?: string;
 }
 
 export interface Task {

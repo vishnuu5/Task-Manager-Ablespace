@@ -46,7 +46,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await api.auth.me() as { user: User };
       setUser(response.user);
     } catch (error: any) {
-      // If we get a 401, clear the token as it's invalid
       if (error.status === 401) {
         if (typeof window !== 'undefined') {
           localStorage.removeItem('token');
@@ -67,7 +66,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(data.user);
       return data;
     } catch (error) {
-      // Clear token on login error
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
       }

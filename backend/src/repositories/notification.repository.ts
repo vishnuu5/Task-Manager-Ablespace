@@ -26,9 +26,9 @@ export class NotificationRepository {
 
   async delete(id: string, userId: string): Promise<void> {
     await prisma.notification.deleteMany({
-      where: { 
+      where: {
         id,
-        userId // Ensure user can only delete their own notifications
+        userId,
       },
     });
   }

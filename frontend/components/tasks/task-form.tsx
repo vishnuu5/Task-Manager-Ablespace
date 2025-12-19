@@ -52,7 +52,6 @@ export function TaskForm({ onSubmit, defaultValues, users = [], loading }: TaskF
       let formattedDate = ""
       if (defaultValues.dueDate) {
         const date = new Date(defaultValues.dueDate)
-        // Format as datetime-local (YYYY-MM-DDTHH:mm)
         formattedDate = date.toISOString().slice(0, 16)
       }
 

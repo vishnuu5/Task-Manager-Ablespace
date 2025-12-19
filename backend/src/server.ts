@@ -17,27 +17,22 @@ dotenv.config();
 const app = express();
 const httpServer = createServer(app);
 
-// Initialize database connection
-// Initialize database connection
 connectDB().catch((error) => {
-  console.error('Failed to connect to database:', error);
+  console.error("Failed to connect to database:", error);
   process.exit(1);
 });
 
-// Configure allowed origins
 const allowedOrigins = [
   process.env.FRONTEND_URL,
-  'http://localhost:3000',
-  'http://localhost:3001',
+  "http://localhost:3000",
+  "http://localhost:3001",
 ].filter(Boolean) as string[];
 
-// Configure CORS for Express
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
-      
+
       if (allowedOrigins.indexOf(origin) === -1) {
         const msg = `The CORS policy for this site does not allow access from the specified Origin: ${origin}`;
         console.warn(msg);
@@ -46,46 +41,44 @@ app.use(
       return callback(null, true);
     },
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    exposedHeaders: ['Authorization'],
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    exposedHeaders: ["Authorization"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   })
 );
 
-// Configure Socket.IO
 const io = new Server(httpServer, {
   cors: {
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-      if (allowedOrigins.some(allowedOrigin => 
-        origin.startsWith(allowedOrigin)
-      )) {
+      if (
+        allowedOrigins.some((allowedOrigin) => origin.startsWith(allowedOrigin))
+      ) {
         return callback(null, true);
       }
-      return callback(new Error('Not allowed by CORS'));
+      return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
-    methods: ['GET', 'POST'],
+    methods: ["GET", "POST"],
   },
-  transports: ['websocket', 'polling'],
+  transports: ["websocket", "polling"],
   allowUpgrades: true,
   pingInterval: 10000,
   pingTimeout: 5000,
   cookie: {
-    name: 'io',
+    name: "io",
     httpOnly: true,
-    path: '/',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    secure: process.env.NODE_ENV === 'production',
-  }
+    path: "/",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    secure: process.env.NODE_ENV === "production",
+  },
 });
 
-// Log socket connections
 io.on("connection", (socket) => {
-  console.log(`🔌 New socket connection: ${socket.id}`);
-  
+  console.log(`New socket connection: ${socket.id}`);
+
   socket.on("disconnect", () => {
-    console.log(`❌ Socket disconnected: ${socket.id}`);
+    console.log(`Socket disconnected: ${socket.id}`);
   });
 });
 
@@ -99,7 +92,6 @@ app.use(express.json());
 app.use(cookieParser());
 app.set("io", io);
 app.set("trust proxy", 1);
-
 
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/tasks", taskRoutes);
@@ -120,6 +112,5 @@ httpServer.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Socket.IO server is running`);
 });
-
 
 export { io };
