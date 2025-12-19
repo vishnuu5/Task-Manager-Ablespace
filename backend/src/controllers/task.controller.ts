@@ -83,13 +83,46 @@ export class TaskController {
     next: NextFunction
   ): Promise<void> {
     try {
-      const result = await taskService.deleteTask(req.params.id, req.userId!);
+      const taskId = req.params.id;
+      const userId = req.userId!;
+      
+      if (!taskId) {
+        res.status(400).json({ message: 'Task ID is required' });
+        return;
+      }
+      
+      const result = await taskService.deleteTask(taskId, userId);
+      
+      if (result === null) {
+        // Task not found
+        res.status(404).json({ message: 'Task not found' });
+        return;
+      }
+      
+      // Task was deleted successfully
       const io = req.app.get("io");
-      io.emit("task:deleted", { id: req.params.id });
-
-      res.json(result);
+      io.emit("task:deleted", { id: taskId });
+      
+      res.status(200).json(result);
     } catch (error) {
-      next(error);
+      console.error('Error deleting task:', error);
+      
+      // If it's an unauthorized error
+      if (error && typeof error === 'object' && 'status' in error && error.status === 403) {
+        res.status(403).json({ 
+          message: 'Unauthorized to delete this task',
+          error: 'FORBIDDEN'
+        });
+        return;
+      }
+      
+      // For other errors, pass to error handler with proper status code
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      res.status(500).json({
+        message: 'Failed to delete task',
+        error: 'INTERNAL_SERVER_ERROR',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      });
     }
   }
   async getDashboard(

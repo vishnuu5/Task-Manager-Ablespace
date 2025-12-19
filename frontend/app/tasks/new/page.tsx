@@ -41,16 +41,45 @@ export default function NewTaskPage() {
 const handleSubmit = async (formData: any) => {
   try {
     setLoading(true);
+    
+    // Format the task data according to the API requirements
     const taskData = {
-      ...formData,
+      title: formData.title.trim(),
+      description: formData.description.trim(),
       dueDate: new Date(formData.dueDate).toISOString(),
-      ...(formData.assignedToId ? { assignedToId: formData.assignedToId } : {})
+      priority: formData.priority || 'Medium',
+      status: formData.status || 'To Do',
+      ...(formData.assignedToId && formData.assignedToId !== 'none' ? { 
+        assignedToId: formData.assignedToId 
+      } : {})
     };
 
-    await api.tasks.create(taskData);
-    router.push("/dashboard");
+    console.log('Submitting task data:', taskData);
+    
+    try {
+      const response = await api.tasks.create(taskData);
+      console.log('Task created successfully:', response);
+      router.push("/dashboard");
+    } catch (apiError: any) {
+      console.error('API Error details:', apiError);
+      
+      // Handle validation errors
+      if (apiError.details) {
+        const errorMessages = Object.entries(apiError.details)
+          .map(([field, errors]) => {
+            const errorList = Array.isArray(errors) ? errors : [errors];
+            return `${field}: ${errorList.join(', ')}`;
+          })
+          .join('\n');
+        
+        alert(`Validation failed:\n${errorMessages}`);
+      } else {
+        alert(apiError.message || 'Failed to create task. Please check the console for details.');
+      }
+    }
   } catch (error: any) {
-    alert(error.message || "Failed to create task");
+    console.error('Unexpected error:', error);
+    alert('An unexpected error occurred. Please check the console for details.');
   } finally {
     setLoading(false);
   }
