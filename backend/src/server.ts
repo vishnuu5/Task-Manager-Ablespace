@@ -10,11 +10,15 @@ import notificationRoutes from "./routes/notification.routes";
 import userRoutes from "./routes/user.routes";
 import { errorHandler } from "./middleware/error.middleware";
 import { initSocketHandlers } from "./socket/socket.handlers";
+import { connectDB } from "./utils/db";
 
 dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
+
+// Initialize database connection
+connectDB().catch(console.error);
 
 const allowedOrigins = [
   process.env.FRONTEND_URL,
@@ -24,8 +28,29 @@ const allowedOrigins = [
 const io = new Server(httpServer, {
   cors: {
     origin: allowedOrigins,
-    credentials: true
+    credentials: true,
+    methods: ["GET", "POST"],
+  },
+  transports: ["websocket", "polling"],
+  allowUpgrades: true,
+  pingInterval: 10000,
+  pingTimeout: 5000,
+  cookie: {
+    name: "io",
+    httpOnly: true,
+    path: "/",
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
   }
+});
+
+// Log socket connections
+io.on("connection", (socket) => {
+  console.log(`🔌 New socket connection: ${socket.id}`);
+  
+  socket.on("disconnect", () => {
+    console.log(`❌ Socket disconnected: ${socket.id}`);
+  });
 });
 
 app.use(
@@ -57,6 +82,7 @@ const PORT = Number(process.env.PORT);
 
 httpServer.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`Socket.IO server is running`);
 });
 
 
