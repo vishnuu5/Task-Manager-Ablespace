@@ -16,19 +16,47 @@ dotenv.config();
 const app = express();
 const httpServer = createServer(app);
 
+// Environment configuration
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const FRONTEND_URL = NODE_ENV === 'production'
+  ? [
+      'https://task-manager-ablespace.vercel.app',
+      'https://task-manager-ablespace-ogxb7gk93-vishnus-projects-3ac220e9.vercel.app'
+    ]
+  : 'http://localhost:3000';
+
+// Socket.IO configuration
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: FRONTEND_URL,
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
   },
+  transports: ['websocket', 'polling'],
+  pingTimeout: 60000,
+  pingInterval: 25000
 });
 
-app.use(
-  cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
-    credentials: true,
-  })
-);
+// CORS configuration
+app.use(cors({
+  origin: FRONTEND_URL,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Cookie settings middleware
+app.use((req, res, next) => {
+  const isProduction = NODE_ENV === 'production';
+  res.cookie('test', 'test', {
+    sameSite: isProduction ? 'none' : 'lax',
+    secure: isProduction,
+    httpOnly: true,
+    domain: isProduction ? '.onrender.com' : undefined
+  });
+  next();
+});
 app.use(express.json());
 app.use(cookieParser());
 app.set("io", io);
